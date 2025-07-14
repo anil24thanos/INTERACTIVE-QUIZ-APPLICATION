@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic Quiz Application</title>
+  <link rel="stylesheet" href="quiz1style.css">
+</head>
+<body>
+  <div class="quiz-container">
+    <h1>Dynamic Quiz Application</h1>
+    <div class="high-score">High Score: <span id="high-score">0</span></div>
+    <div class="score">Score: <span id="score">0</span></div>
+    <div class="progress-bar">
+      <div class="progress" id="progress"></div>
+    </div>
+    <div class="timer" id="timer">Time: 30s</div>
+    <div class="question" id="question"></div>
+    <div class="options" id="options"></div>
+    <div class="feedback" id="feedback"></div>
+    <button id="next-btn" disabled>Next Question</button>
+    <div class="result" id="result" style="display: none;">
+      <h2>Quiz Completed!</h2>
+      <p>Your final score: <span id="final-score"></span></p>
+      <button id="restart-btn">Restart Quiz</button>
+    </div>
+  </div>
+
+  <script>
+    const quizData = [
+      {
+        question: "What is the capital of France?",
+        options: ["Paris", "London", "Berlin", "Madrid"],
+        correct: "Paris",
+        explanation: "Paris is the capital city of France, known for landmarks like the Eiffel Tower."
+      },
+      {
+        question: "Which planet is known as the Red Planet?",
+        options: ["Venus", "Mars", "Jupiter", "Saturn"],
+        correct: "Mars",
+        explanation: "Mars is called the Red Planet due to its reddish appearance caused by iron oxide (rust)."
+      },
+      {
+        question: "What is 2 + 2?",
+        options: ["3", "4", "5", "6"],
+        correct: "4",
+        explanation: "2 + 2 equals 4."
+      },
+      {
+        question: "Who wrote 'Romeo and Juliet'?",
+        options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+        correct: "William Shakespeare",
+        explanation: "William Shakespeare wrote the famous tragedy 'Romeo and Juliet' in the late 16th century."
+      },
+      {
+        question: "What is the largest ocean on Earth?",
+        options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+        correct: "Pacific Ocean",
+        explanation: "The Pacific Ocean is the largest and deepest ocean, covering about one-third of Earth's surface."
+      }
+    ];
+
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let answered = false;
+    let timeLeft = 30;
+    let timerId;
+    let highScore = localStorage.getItem("highScore") ? parseInt(localStorage.getItem("highScore")) : 0;
+
+    const questionEl = document.getElementById("question");
+    const optionsEl = document.getElementById("options");
+    const feedbackEl = document.getElementById("feedback");
+    const nextBtn = document.getElementById("next-btn");
+    const scoreEl = document.getElementById("score");
+    const highScoreEl = document.getElementById("high-score");
+    const progressEl = document.getElementById("progress");
+    const timerEl = document.getElementById("timer");
+    const resultEl = document.getElementById("result");
+    const finalScoreEl = document.getElementById("final-score");
+    const restartBtn = document.getElementById("restart-btn");
+
+    // Shuffle array (Fisher-Yates)
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function loadQuestion() {
+      clearInterval(timerId);
+      timeLeft = 30;
+      timerEl.textContent = `Time: ${timeLeft}s`;
+      timerEl.classList.remove("warning");
+      startTimer();
+
+      const currentQuestion = quizData[currentQuestionIndex];
+      questionEl.textContent = currentQuestion.question;
+      optionsEl.innerHTML = "";
+      feedbackEl.style.display = "none";
+      nextBtn.disabled = true;
+      answered = false;
+
+      // Randomize options
+      const options = [...currentQuestion.options];
+      shuffleArray(options);
+      options.forEach(option => {
+        const button = document.createElement("div");
+        button.classList.add("option");
+        button.textContent = option;
+        button.addEventListener("click", () => handleAnswer(option));
+        optionsEl.appendChild(button);
+      });
+
+      updateProgress();
+    }
+
+    function startTimer() {
+      timerId = setInterval(() => { 
+        timeLeft--;
+        timerEl.textContent = `Time: ${timeLeft}s`;
+        if (timeLeft <= 10) timerEl.classList.add("warning");
+        if (timeLeft <= 0) {
+          handleAnswer(null); // Treat as incorrect if time runs out
+        }
+      }, 1000);
+    }
+
+    function handleAnswer(selected) {
+      if (answered) return;
+      answered = true;
+      clearInterval(timerId);
+
+      const currentQuestion = quizData[currentQuestionIndex];
+      const isCorrect = selected === currentQuestion.correct;
+
+      const options = optionsEl.querySelectorAll(".option");
+      options.forEach(option => {
+        option.classList.add("disabled");
+        if (option.textContent === currentQuestion.correct) {
+          option.classList.add("correct");
+        }
+        if (option.textContent === selected && !isCorrect) {
+          option.classList.add("incorrect");
+        }
+      });
+
+      feedbackEl.style.display = "block";
+      feedbackEl.textContent = currentQuestion.explanation;
+      feedbackEl.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
+
+      if (isCorrect) {
+        score += 10;
+        scoreEl.textContent = score;
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem("highScore", highScore);
+          highScoreEl.textContent = highScore;
+        }
+      }
+
+      nextBtn.disabled = false;
+    }
+
+    function updateProgress() {
+      const progress = ((currentQuestionIndex + 1) / quizData.length) * 100;
+      progressEl.style.width = `${progress}%`;
+    }
+
+    function showResult() {
+      clearInterval(timerId);
+      questionEl.style.display = "none";
+      optionsEl.style.display = "none";
+      feedbackEl.style.display = "none";
+      timerEl.style.display = "none";
+      nextBtn.style.display = "none";
+      resultEl.style.display = "block";
+      finalScoreEl.textContent = `${score} out of ${quizData.length * 10}`;
+    }
+
+    function restartQuiz() {
+      currentQuestionIndex = 0;
+      score = 0;
+      scoreEl.textContent = score;
+      shuffleArray(quizData); // Randomize questions again
+      questionEl.style.display = "block";
+      optionsEl.style.display = "block";
+      timerEl.style.display = "block";
+      nextBtn.style.display = "block";
+      resultEl.style.display = "none";
+      loadQuestion();
+    }
+
+    nextBtn.addEventListener("click", () => {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < quizData.length) {
+        loadQuestion();
+      } else {
+        showResult();
+      }
+    });
+    restartBtn.addEventListener("click", restartQuiz);
+
+    // Initialize quiz
+    shuffleArray(quizData);
+    highScoreEl.textContent = highScore;
+    loadQuestion();
+  </script>
+</body>
+</html>
